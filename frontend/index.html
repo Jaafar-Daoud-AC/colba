@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>كولبا | إدارة المحل</title>
+<meta name="theme-color" content="#2F3B2C">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%232F3B2C%22/><text x=%2250%22 y=%2266%22 font-size=%2050%22 text-anchor=%22middle%22 fill=%22%23F6F1E7%22 font-family=%22sans-serif%22>ك</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- الرأس -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-mark">ك</span>
+      <div class="topbar-titles">
+        <h1>كولبا</h1>
+        <p id="today-date"></p>
+      </div>
+    </div>
+    <button class="icon-btn" id="refresh-btn" aria-label="تحديث" title="تحديث">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M17.65 6.35A8 8 0 1 0 19.94 13h-2.06a6 6 0 1 1-1.4-6.24L13 10h7V3l-2.35 3.35z"/></svg>
+    </button>
+  </header>
+
+  <div id="db-warning" class="db-warning hidden">
+    <span>⚠ لا يوجد اتصال بقاعدة البيانات (Supabase). راجع متغير DATABASE_URL.</span>
+  </div>
+
+  <!-- شاشة: الرئيسية / الملخص -->
+  <main id="view-home" class="view">
+    <section class="stat-grid">
+      <div class="stat-card highlight">
+        <span class="stat-label">راس المال</span>
+        <span class="stat-value" id="stat-capital">0</span>
+      </div>
+      <div class="stat-card" id="stat-cash-surplus-card">
+        <span class="stat-label">الفائض النقدي</span>
+        <span class="stat-value" id="stat-cash-surplus">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">المردود الكلي</span>
+        <span class="stat-value" id="stat-total-return">0</span>
+      </div>
+      <div class="stat-card positive">
+        <span class="stat-label">المردود الفعلي</span>
+        <span class="stat-value" id="stat-actual-return">0</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">التكاليف والصندوق</h2>
+      <form id="costs-form" class="costs-form">
+        <label class="field">
+          <span>تكاليف المشروع</span>
+          <input type="number" inputmode="decimal" id="input-project-costs" placeholder="0">
+        </label>
+        <label class="field">
+          <span>تكاليف الضرائب</span>
+          <input type="number" inputmode="decimal" id="input-tax-costs" placeholder="0">
+        </label>
+
+        <div class="field">
+          <span>أجرة العمال</span>
+          <div class="labor-mode-row">
+            <div class="segmented small" id="labor-mode-segmented">
+              <button type="button" class="segmented-btn active" data-mode="percent">نسبة %</button>
+              <button type="button" class="segmented-btn" data-mode="fixed">رقم ثابت</button>
+            </div>
+            <input type="number" inputmode="decimal" id="input-labor-costs" placeholder="0">
+          </div>
+          <p class="hint-text tiny" id="labor-mode-hint">نسبة مئوية تُحسب من الربح اليومي</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary full">حفظ التكاليف</button>
+      </form>
+
+      <div class="box-row">
+        <div class="box-balance">
+          <span class="stat-label">في الصندوق</span>
+          <span class="stat-value" id="stat-box-balance">0</span>
+        </div>
+        <div class="box-total">
+          <span class="stat-label">راس المال الكلي</span>
+          <span class="stat-value" id="stat-total-capital-box">0</span>
+        </div>
+      </div>
+      <div class="box-actions">
+        <input type="number" inputmode="decimal" id="input-box-amount" placeholder="المبلغ">
+        <button class="btn btn-ghost" id="box-add-btn">إضافة</button>
+        <button class="btn btn-ghost danger" id="box-remove-btn">سحب</button>
+      </div>
+      <div id="box-recent" class="box-recent"></div>
+    </section>
+
+  </main>
+
+  <!-- شاشة: المنتجات -->
+  <main id="view-products" class="view hidden">
+    <div class="section-head">
+      <h2>المنتجات</h2>
+      <div class="section-head-actions">
+        <button class="btn btn-ghost small" id="open-invoices-btn">سجل الفواتير</button>
+        <button class="btn btn-ghost small" id="manage-categories-btn">الأصناف</button>
+        <button class="btn btn-primary small" id="add-product-btn">+ منتج جديد</button>
+      </div>
+    </div>
+    <button class="btn btn-invoice full" id="add-invoice-btn">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M6 2h9l5 5v15H6V2zm8 1.5V8h4.5L14 3.5zM8 12h8v1.5H8V12zm0 4h8v1.5H8V16zm0-8h4v1.5H8V8z"/></svg>
+      <span>إضافة فاتورة (استلام كمية جديدة)</span>
+    </button>
+    <div id="products-list" class="products-list"></div>
+    <p id="products-empty" class="empty-hint hidden">لا توجد منتجات بعد. أضف أول منتج للبدء.</p>
+  </main>
+
+  <!-- شاشة: الإحصاء اليومي -->
+  <main id="view-stats" class="view hidden">
+    <div class="section-head">
+      <h2>الإحصاء اليومي</h2>
+      <input type="date" id="stats-date" class="date-input">
+    </div>
+
+    <section class="stat-grid three">
+      <div class="stat-card highlight">
+        <span class="stat-label">الربح اليومي</span>
+        <span class="stat-value" id="stat-daily-profit">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">راس المال اليومي</span>
+        <span class="stat-value" id="stat-daily-capital">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">الإجمالي اليومي</span>
+        <span class="stat-value" id="stat-daily-total">0</span>
+      </div>
+    </section>
+
+    <div class="stat-card wide">
+      <span class="stat-label" id="labor-share-label">حصة العمال (نسبة من الربح)</span>
+      <span class="stat-value" id="stat-labor-share">0</span>
+    </div>
+
+    <div id="daily-products" class="products-list compact"></div>
+
+    <section class="panel">
+      <h2 class="panel-title">إغلاق اليوم</h2>
+      <p class="hint-text">أدخل المصاريف اليومية ليُحسم الصافي ويُضاف تلقائيًا إلى الصندوق.</p>
+      <div class="box-actions">
+        <input type="number" inputmode="decimal" id="daily-expenses" placeholder="المصاريف">
+      </div>
+      <label class="field" style="margin-top:12px;">
+        <span>المبلغ الحقيقي الموجود فعليًا في الصندوق (بعد الجرد)</span>
+        <input type="number" inputmode="decimal" id="daily-actual-cash" placeholder="مثال: 152000">
+      </label>
+      <label class="field">
+        <span>ملاحظة على مطابقة الصندوق (اختياري)</span>
+        <input type="text" id="daily-cash-note" placeholder="مثال: نقص بسبب صرف باقي زيادة">
+      </label>
+      <button class="btn btn-primary full" id="close-day-btn">تم</button>
+      <p id="close-day-result" class="close-result hidden"></p>
+      <div id="cash-count-result" class="cash-count-box hidden"></div>
+    </section>
+  </main>
+
+  <!-- شاشة: الجرد -->
+  <main id="view-stocktake" class="view hidden">
+    <div class="section-head">
+      <h2>الجرد</h2>
+      <input type="date" id="stocktake-date" class="date-input">
+    </div>
+    <p class="hint-text">
+      الكمية المعروضة بجانب كل منتج هي الكمية المسجّلة حاليًا (من آخر فاتورة أو تعديل).
+      عدّل فقط المنتجات التي وجدت كميتها الفعلية مختلفة، ثم احفظ — والباقي يبقى كما هو دون أي أثر.
+    </p>
+
+    <label class="field">
+      <span>بحث سريع للانتقال إلى منتج معيّن</span>
+      <input type="text" id="stocktake-search" placeholder="اكتب اسم المنتج للتصفية السريعة...">
+    </label>
+
+    <div id="stocktake-bulk-list" class="stocktake-bulk-list"></div>
+    <p id="stocktake-bulk-empty" class="empty-hint hidden">لا توجد منتجات بعد.</p>
+
+    <button class="btn btn-primary full" id="stocktake-save-btn" style="margin-top:14px;">حفظ الجرد وتسجيل المبيعات</button>
+
+    <div class="section-head tight" style="margin-top:26px;">
+      <h3 class="panel-title">جرد اليوم (كل العمليات المتتالية بنفس التاريخ)</h3>
+    </div>
+    <p class="hint-text">كل عملية حفظ منفصلة تظهر كقسم بفاصل، والمجموع الكلي أسفل القائمة.</p>
+    <div id="stocktake-day-list" class="stocktake-day-list"></div>
+    <p id="stocktake-day-empty" class="empty-hint hidden">لا يوجد جرد مسجَّل في هذا التاريخ بعد.</p>
+    <div id="stocktake-day-total" class="stocktake-day-total hidden"></div>
+  </main>
+
+  <!-- شاشة: التحليلات -->
+  <main id="view-analytics" class="view hidden">
+    <div class="section-head">
+      <h2>التحليلات</h2>
+      <button class="icon-btn ghost" id="analytics-visibility-btn" aria-label="تخصيص العرض" title="اختر ما يُعرض">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M3 5h18v2H3V5zm4 6h10v2H7v-2zm4 6h2v2h-2v-2z"/></svg>
+      </button>
+    </div>
+
+    <!-- لوحة تخصيص العرض: إظهار/إخفاء كل قسم إحصائي -->
+    <div id="analytics-visibility-panel" class="panel visibility-panel hidden">
+      <h3 class="panel-title">اختر ما تريد عرضه</h3>
+      <div class="toggle-list">
+        <label class="toggle-row"><input type="checkbox" data-toggle="section-totals" checked><span>الإجمالي والأرباح</span></label>
+        <label class="toggle-row"><input type="checkbox" data-toggle="section-timeseries" checked><span>الرسم البياني الزمني (خط)</span></label>
+        <label class="toggle-row"><input type="checkbox" data-toggle="section-top" checked><span>الأكثر مبيعًا</span></label>
+        <label class="toggle-row"><input type="checkbox" data-toggle="section-minmax" checked><span>أعلى/أقل كمية لكل منتج</span></label>
+        <label class="toggle-row"><input type="checkbox" data-toggle="section-price-changes" checked><span>تغيّر أسعار الشراء/البيع (من الفواتير)</span></label>
+        <label class="toggle-row"><input type="checkbox" data-toggle="section-product-chart"><span>خط بياني تفصيلي لمنتج محدد</span></label>
+      </div>
+    </div>
+
+    <div class="segmented" id="period-segmented">
+      <button class="segmented-btn active" data-period="daily">يومي</button>
+      <button class="segmented-btn" data-period="weekly">أسبوعي</button>
+      <button class="segmented-btn" data-period="monthly">شهري</button>
+      <button class="segmented-btn" data-period="yearly">سنوي</button>
+    </div>
+
+    <!-- الإجمالي والأرباح -->
+    <section class="analytics-section" id="section-totals">
+      <section class="stat-grid">
+        <div class="stat-card highlight">
+          <span class="stat-label">إجمالي الربح</span>
+          <span class="stat-value" id="analytics-total-profit">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">إجمالي الإيراد</span>
+          <span class="stat-value" id="analytics-total-revenue">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">إجمالي الكمية المباعة</span>
+          <span class="stat-value" id="analytics-total-quantity">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">إجمالي التكلفة</span>
+          <span class="stat-value" id="analytics-total-cost">0</span>
+        </div>
+      </section>
+    </section>
+
+    <!-- الرسم البياني الزمني -->
+    <section class="analytics-section panel chart-panel" id="section-timeseries">
+      <div class="chart-legend">
+        <span class="legend-item"><i class="dot dot-profit"></i> الربح</span>
+        <span class="legend-item"><i class="dot dot-qty"></i> الأعداد المباعة</span>
+      </div>
+      <div id="chart-container" class="chart-container">
+        <svg id="chart-svg" viewBox="0 0 340 200" preserveAspectRatio="none"></svg>
+        <div id="chart-tooltip" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="chart-labels" class="chart-labels"></div>
+      <p id="chart-empty" class="empty-hint hidden">لا توجد بيانات مبيعات لعرضها بعد.</p>
+    </section>
+
+    <!-- الأكثر مبيعًا -->
+    <section class="analytics-section panel" id="section-top">
+      <div class="section-head tight">
+        <h2 class="panel-title">الأكثر مبيعًا</h2>
+        <div class="segmented small" id="top-sort-segmented">
+          <button class="segmented-btn active" data-sort="quantity">بالكمية</button>
+          <button class="segmented-btn" data-sort="profit">بالربح</button>
+          <button class="segmented-btn" data-sort="revenue">بالإيراد</button>
+        </div>
+      </div>
+      <div class="segmented small full-width" id="top-period-segmented">
+        <button class="segmented-btn" data-period="daily">اليوم</button>
+        <button class="segmented-btn" data-period="weekly">الأسبوع</button>
+        <button class="segmented-btn" data-period="monthly">الشهر</button>
+        <button class="segmented-btn" data-period="yearly">السنة</button>
+        <button class="segmented-btn active" data-period="all">الكل</button>
+      </div>
+      <div id="top-products-list" class="top-products-list"></div>
+      <p id="top-products-empty" class="empty-hint hidden">لا توجد مبيعات مسجّلة بعد.</p>
+    </section>
+
+    <!-- أعلى/أقل كمية لكل منتج -->
+    <section class="analytics-section panel" id="section-minmax">
+      <h2 class="panel-title">أعلى وأقل كمية بيعت (لكل عملية بيع)</h2>
+      <p class="hint-text">ضمن نفس فترة "الأكثر مبيعًا" أعلاه.</p>
+      <div id="minmax-list" class="minmax-list"></div>
+      <p id="minmax-empty" class="empty-hint hidden">لا توجد بيانات كافية بعد.</p>
+    </section>
+
+    <!-- تغيّر أسعار الشراء/البيع عبر الوقت -->
+    <section class="analytics-section panel" id="section-price-changes">
+      <h2 class="panel-title">تغيّر أسعار الشراء/البيع (من الفواتير)</h2>
+      <p class="hint-text">كل تغيّر سعر يحدث عند وصول فاتورة لمنتج موجود بسعر مختلف — الأخضر ارتفاع، الأحمر انخفاض.</p>
+      <div id="price-changes-list" class="price-changes-list"></div>
+      <p id="price-changes-empty" class="empty-hint hidden">لا يوجد تغيّر أسعار مسجّل بعد.</p>
+    </section>
+
+    <!-- خط بياني تفصيلي لمنتج -->
+    <section class="analytics-section panel chart-panel hidden" id="section-product-chart">
+      <div class="section-head tight">
+        <h2 class="panel-title">خط بياني لمنتج محدد</h2>
+      </div>
+      <div class="field">
+        <span>اختر المنتج</span>
+        <select id="product-chart-select" class="select-input"></select>
+      </div>
+      <div id="product-chart-container" class="chart-container">
+        <svg id="product-chart-svg" viewBox="0 0 340 200" preserveAspectRatio="none"></svg>
+        <div id="product-chart-tooltip" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="product-chart-labels" class="chart-labels"></div>
+      <div class="stat-grid" style="margin-top:10px;">
+        <div class="stat-card">
+          <span class="stat-label">أعلى كمية بيعت دفعة واحدة</span>
+          <span class="stat-value" id="product-chart-max">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">أقل كمية بيعت دفعة واحدة</span>
+          <span class="stat-value" id="product-chart-min">0</span>
+        </div>
+      </div>
+      <p id="product-chart-empty" class="empty-hint hidden">لا توجد عمليات بيع مسجّلة لهذا المنتج.</p>
+    </section>
+  </main>
+
+  <!-- التبويبات السفلية -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="home">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3l9-8z"/></svg>
+      <span>الرئيسية</span>
+    </button>
+    <button class="nav-btn" data-view="products">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 4h16v4H4V4zm1 6h14l-1.5 10h-11L5 10zm5 2v6h1v-6h-1zm4 0v6h1v-6h-1z"/></svg>
+      <span>المنتجات</span>
+    </button>
+    <button class="nav-btn" data-view="stats">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M5 21V9h3v12H5zm6 0V3h3v18h-3zm6 0V13h3v8h-3z"/></svg>
+      <span>الإحصاء</span>
+    </button>
+    <button class="nav-btn" data-view="stocktake">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M9 3h6v2h5v16H4V5h5V3zm0 4H6v12h12V7h-3v2H9V7zm1-2v2h4V5h-4z"/></svg>
+      <span>الجرد</span>
+    </button>
+    <button class="nav-btn" data-view="analytics">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M3 17l6-6 4 4 8-8v3l-8 8-4-4-6 6v-3zM3 20h18v1H3v-1z"/></svg>
+      <span>التحليلات</span>
+    </button>
+  </nav>
+</div>
+
+<!-- نافذة منبثقة: إضافة/تعديل منتج -->
+<div id="product-modal" class="modal hidden">
+  <div class="modal-backdrop" data-close="product-modal"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 id="product-modal-title">منتج جديد</h3>
+    <form id="product-form">
+      <input type="hidden" id="product-id">
+      <label class="field">
+        <span>اسم المنتج</span>
+        <input type="text" id="product-name" required placeholder="مثال: سكر - كيس 5 كغ">
+      </label>
+      <label class="field">
+        <span>الصنف</span>
+        <select id="product-category" class="select-input">
+          <option value="">— بدون صنف —</option>
+        </select>
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>العدد</span>
+          <input type="number" inputmode="numeric" id="product-quantity" required placeholder="0">
+        </label>
+        <label class="field">
+          <span>سعر الشراء</span>
+          <input type="number" inputmode="decimal" id="product-buy" required placeholder="0">
+        </label>
+        <label class="field">
+          <span>سعر البيع</span>
+          <input type="number" inputmode="decimal" id="product-sell" required placeholder="0">
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline hidden" id="product-delete-btn">حذف</button>
+        <button type="submit" class="btn btn-primary full">حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- نافذة منبثقة: فاتورة إضافة مخزون -->
+<div id="invoice-modal" class="modal hidden">
+  <div class="modal-backdrop" data-close="invoice-modal"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3>فاتورة إضافة مخزون</h3>
+    <label class="field">
+      <span>تاريخ الفاتورة</span>
+      <input type="date" id="invoice-date">
+    </label>
+    <label class="field">
+      <span>ملاحظة على الفاتورة (اختياري)</span>
+      <input type="text" id="invoice-note" placeholder="مثال: فاتورة مورد الألبان">
+    </label>
+
+    <div id="invoice-items" class="invoice-items"></div>
+    <button type="button" class="btn btn-ghost full" id="invoice-add-row-btn">+ إضافة منتج للفاتورة</button>
+
+    <div class="invoice-total-row">
+      <span>إجمالي تكلفة الفاتورة</span>
+      <span id="invoice-total-cost">0</span>
+    </div>
+
+    <button type="button" class="btn btn-primary full" id="invoice-save-btn" style="margin-top:12px;">حفظ الفاتورة</button>
+  </div>
+</div>
+
+<!-- قالب سطر فاتورة (يُستنسخ بالجافاسكربت) -->
+<template id="invoice-row-template">
+  <div class="invoice-row">
+    <button type="button" class="invoice-row-remove" data-action="remove-row" aria-label="حذف السطر">✕</button>
+    <div class="field">
+      <span>المنتج</span>
+      <select class="invoice-row-product select-input">
+        <option value="">— اختر منتجًا —</option>
+        <option value="__new__">➕ منتج جديد غير موجود</option>
+      </select>
+    </div>
+    <div class="invoice-row-new-name hidden field">
+      <span>اسم المنتج الجديد</span>
+      <input type="text" class="invoice-row-name" placeholder="مثال: زيت - عبوة 1 لتر">
+    </div>
+    <div class="invoice-row-new-category hidden field">
+      <span>صنف المنتج الجديد</span>
+      <select class="invoice-row-category select-input">
+        <option value="">— بدون صنف —</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label class="field">
+        <span>الكمية المضافة</span>
+        <input type="number" inputmode="numeric" class="invoice-row-qty" placeholder="0">
+      </label>
+      <label class="field">
+        <span>سعر الشراء</span>
+        <input type="number" inputmode="decimal" class="invoice-row-buy" placeholder="0">
+      </label>
+      <label class="field">
+        <span>سعر البيع</span>
+        <input type="number" inputmode="decimal" class="invoice-row-sell" placeholder="0">
+      </label>
+    </div>
+    <p class="invoice-row-hint hint-text tiny"></p>
+  </div>
+</template>
+
+<!-- نافذة منبثقة: سجل الفواتير -->
+<div id="invoices-modal" class="modal hidden">
+  <div class="modal-backdrop" data-close="invoices-modal"></div>
+  <div class="modal-sheet tall">
+    <div class="modal-handle"></div>
+    <h3>سجل الفواتير</h3>
+    <div class="segmented small full-width" id="invoices-sort-segmented">
+      <button class="segmented-btn active" data-sort="date_desc">الأحدث</button>
+      <button class="segmented-btn" data-sort="date_asc">الأقدم</button>
+      <button class="segmented-btn" data-sort="cost_desc">أعلى تكلفة</button>
+      <button class="segmented-btn" data-sort="cost_asc">أقل تكلفة</button>
+      <button class="segmented-btn" data-sort="qty_desc">أكبر كمية</button>
+      <button class="segmented-btn" data-sort="qty_asc">أقل كمية</button>
+    </div>
+    <div id="invoices-list" class="invoices-list"></div>
+    <p id="invoices-empty" class="empty-hint hidden">لا توجد فواتير مسجّلة بعد.</p>
+  </div>
+</div>
+
+<!-- نافذة منبثقة: إدارة الأصناف -->
+<div id="categories-modal" class="modal hidden">
+  <div class="modal-backdrop" data-close="categories-modal"></div>
+  <div class="modal-sheet tall">
+    <div class="modal-handle"></div>
+    <h3>الأصناف</h3>
+    <form id="category-add-form" class="category-add-form">
+      <input type="text" id="category-name-input" required placeholder="اسم الصنف الجديد — مثال: مشروبات">
+      <button type="submit" class="btn btn-primary">إضافة</button>
+    </form>
+    <div id="categories-list" class="categories-list"></div>
+    <p id="categories-empty" class="empty-hint hidden">لا توجد أصناف بعد. أضف أول صنف لتبدأ بتصنيف منتجاتك.</p>
+  </div>
+</div>
+
+<!-- نافذة منبثقة: ملاحظة السحب من الصندوق -->
+<div id="withdraw-note-modal" class="modal hidden">
+  <div class="modal-backdrop" data-close="withdraw-note-modal"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3>سبب السحب من الصندوق</h3>
+    <p class="hint-text" id="withdraw-note-amount"></p>
+    <form id="withdraw-note-form">
+      <label class="field">
+        <span>الملاحظة (مطلوبة)</span>
+        <input type="text" id="withdraw-note-input" required placeholder="مثال: شراء جرة غاز">
+      </label>
+      <button type="submit" class="btn btn-primary full">تأكيد السحب</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
