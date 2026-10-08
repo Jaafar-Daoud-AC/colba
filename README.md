@@ -242,7 +242,6 @@ python3 app.py
 **جعفر داؤد**
 
 - GitHub: [@Jaafar-Daoud-AC](https://github.com/Jaafar-Daoud-AC)
-- مشاريع أخرى: [بوت تلغرام للذهب والدولار](https://github.com/Jaafar-Daoud-AC/pot_telegram)
 
 <div align="center">
 
